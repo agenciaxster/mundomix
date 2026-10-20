@@ -7,13 +7,15 @@ import { useAuth } from '@/hooks/useAuth'
 import { reportService } from '@/lib/services/report.service'
 import type { ReportFilterState, SellerPerformanceItem } from '@/types/report'
 import { ReportFilterBar } from './components/ReportFilterBar'
+import { ReportPrintHeader } from './components/ReportPrintHeader'
+import { ReportPrintFooter } from './components/ReportPrintFooter'
 import { LoadingState } from '@/components/shared/LoadingState'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { exportToExcel, triggerPrint } from '@/lib/utils/report-export'
 
 export function SellersPerformancePage() {
-  const { activeCompany, companies, activeBranch } = useAuth()
+  const { activeCompany, companies, activeBranch, profile, user } = useAuth()
 
   const currentCompanyData = companies.find((c) => c.company.id === activeCompany?.id)
   const availableBranches = currentCompanyData?.branches || []
@@ -104,10 +106,34 @@ export function SellersPerformancePage() {
     })
   }
 
+  const activeBranchName =
+    filters.branchId === 'all'
+      ? 'Todas as Filiais'
+      : availableBranches.find((b) => b.id === filters.branchId)?.name || activeBranch?.name || 'Filial'
+
+  const userDisplayName = profile?.full_name || user?.email || 'Usuário Autenticado'
+
+  const totalGross = sellers.reduce((acc, curr) => acc + curr.grossTotal, 0)
+  const totalDiscounts = sellers.reduce((acc, curr) => acc + curr.discountTotal, 0)
+  const avgOverallTicket = totalSalesCount > 0 ? totalSold / totalSalesCount : 0
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      {/* ─── CABEÇALHO INSTITUCIONAL DE IMPRESSÃO ─── */}
+      <ReportPrintHeader
+        title="Desempenho dos Vendedores & Operadores"
+        subtitle="Apuração de faturamento individual, volume de pedidos, descontos concedidos e ticket médio"
+        company={activeCompany}
+        branch={activeBranch}
+        userName={userDisplayName}
+        filtersSummary={{
+          Filial: activeBranchName,
+          Período: `${new Date(filters.dateFrom).toLocaleDateString('pt-BR')} até ${new Date(filters.dateTo).toLocaleDateString('pt-BR')}`,
+        }}
+      />
+
+      {/* Header na Tela */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 print:hidden">
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold tracking-tight text-white">
@@ -148,17 +174,19 @@ export function SellersPerformancePage() {
         </div>
       </div>
 
-      {/* Filtros */}
-      <ReportFilterBar
-        filters={filters}
-        onChange={setFilters}
-        branches={availableBranches}
-        onRefresh={() => loadData(true)}
-        isRefreshing={isRefreshing}
-      />
+      {/* Filtros da Tela */}
+      <div className="print:hidden">
+        <ReportFilterBar
+          filters={filters}
+          onChange={setFilters}
+          branches={availableBranches}
+          onRefresh={() => loadData(true)}
+          isRefreshing={isRefreshing}
+        />
+      </div>
 
-      {/* Cards de Resumo */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      {/* Cards de Resumo da Tela */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 print:hidden">
         <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
           <p className="text-xs text-slate-400">Total Faturado pela Equipe</p>
           <p className="text-xl font-bold text-emerald-400 font-mono mt-1">
@@ -236,10 +264,35 @@ export function SellersPerformancePage() {
                   </tr>
                 ))}
               </tbody>
+              <tfoot className="border-t-2 border-slate-700 bg-slate-850 font-bold text-xs">
+                <tr className="print-totals-row">
+                  <td colSpan={3} className="py-3 px-4 text-right uppercase text-slate-300">
+                    Totais da Equipe ({sellers.length} vendedores):
+                  </td>
+                  <td className="py-3 px-4 text-center font-mono font-bold text-slate-200">
+                    {totalSalesCount}
+                  </td>
+                  <td className="py-3 px-4 text-right font-mono text-slate-300">
+                    R$ {totalGross.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </td>
+                  <td className="py-3 px-4 text-right font-mono text-amber-400">
+                    R$ {totalDiscounts.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </td>
+                  <td className="py-3 px-4 text-right font-mono font-black text-white text-sm">
+                    R$ {totalSold.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </td>
+                  <td className="py-3 px-4 text-right font-mono font-bold text-cyan-400">
+                    R$ {avgOverallTicket.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         </div>
       )}
+
+      {/* Rodapé Padronizado de Impressão */}
+      <ReportPrintFooter />
     </div>
   )
 }

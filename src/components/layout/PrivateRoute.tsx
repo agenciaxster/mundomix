@@ -4,7 +4,7 @@ import { LoadingState } from '@/components/shared/LoadingState'
 import { ErrorState } from '@/components/shared/ErrorState'
 
 export function PrivateRoute() {
-  const { isAuthenticated, isLoading, authError } = useAuth()
+  const { isAuthenticated, isLoading, authError, activeRole } = useAuth()
   const location = useLocation()
 
   // Enquanto a sessão está sendo verificada, exibe loading
@@ -36,6 +36,19 @@ export function PrivateRoute() {
   // Usuário não autenticado → redireciona ao login preservando a rota de origem
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />
+  }
+
+  // ── Controle de Acesso Estrito por Perfil ──────────────────────────────────
+  // Vendedora e Operador de Caixa têm acesso exclusivo ao módulo COMERCIAL
+  const isCommercialOnlyRole =
+    activeRole === 'salesperson' || activeRole === 'cashier'
+
+  if (isCommercialOnlyRole) {
+    const isCommercialRoute = location.pathname.startsWith('/comercial')
+    if (!isCommercialRoute) {
+      // Redireciona diretamente para o Ponto de Venda (PDV) / Comercial
+      return <Navigate to="/comercial/pdv" replace />
+    }
   }
 
   return <Outlet />

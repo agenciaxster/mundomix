@@ -16,6 +16,7 @@ import {
   Pencil,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
+import { usePricingSettings } from '@/hooks/usePricingSettings'
 import { productService, type ProductWithBranchStock } from '@/lib/services/product.service'
 import { categoryService } from '@/lib/services/category.service'
 import type { Category } from '@/types/category'
@@ -48,6 +49,7 @@ export function ProductFormModal({
   productToEdit = null,
 }: ProductFormModalProps) {
   const { activeCompany, activeBranch } = useAuth()
+  const { pricingSettings, getMarkupPrice } = usePricingSettings()
   const catListId = useId()
   const brandListId = useId()
 
@@ -541,9 +543,25 @@ export function ProductFormModal({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">
-                    Preço de Venda Varejo (R$) <span className="text-rose-400">*</span>
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-medium text-slate-300">
+                      Preço de Venda Varejo (R$) <span className="text-rose-400">*</span>
+                    </label>
+                    {pricingSettings && pricingSettings.default_markup_percentage > 0 && cost > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const suggested = getMarkupPrice(cost)
+                          setSalePrice(suggested.toFixed(2))
+                          toast.success(`Preço calculado com ${pricingSettings.default_markup_percentage}% de markup: R$ ${suggested.toFixed(2)}`)
+                        }}
+                        className="text-[10px] font-semibold text-emerald-400 hover:text-emerald-300 transition underline underline-offset-2"
+                        title={`Aplicar markup padrão de ${pricingSettings.default_markup_percentage}%`}
+                      >
+                        + Aplicar Markup ({pricingSettings.default_markup_percentage}%)
+                      </button>
+                    )}
+                  </div>
                   <Input
                     type="number"
                     step="0.01"

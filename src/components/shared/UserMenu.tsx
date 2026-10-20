@@ -40,6 +40,8 @@ export function UserMenu({ className }: UserMenuProps) {
     owner: 'Proprietário',
     admin: 'Administrador',
     manager: 'Gerente',
+    salesperson: 'Vendedor(a)',
+    cashier: 'Operador de Caixa',
     operator: 'Operador',
     viewer: 'Visualizador',
   }

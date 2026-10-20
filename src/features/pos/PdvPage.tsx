@@ -36,6 +36,7 @@ import type { DiscountType, PaymentMethod } from '@/types/sale'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from '@/hooks/useToast'
+import { usePricingSettings } from '@/hooks/usePricingSettings'
 
 // Modais do PDV
 import { PaymentModal } from './modals/PaymentModal'
@@ -66,6 +67,7 @@ export function PdvPage() {
   const quoteIdParam = searchParams.get('quote_id')
 
   const { activeCompany, activeBranch, user, profile, activeRole } = useAuth()
+  const { pricingSettings, getMarkupPrice } = usePricingSettings()
 
   // Estado do Carrinho
   const [cart, setCart] = useState<PosCartItem[]>([])
@@ -235,6 +237,10 @@ export function PdvPage() {
 
         // Recalcula atacado vs varejo
         let unitPrice = Number(prod.sale_price || 0)
+        // Aplica markup se o preço de venda for zero e o toggle estiver ativo
+        if (unitPrice === 0 && pricingSettings?.apply_markup_on_pdv && prod.cost_price > 0) {
+          unitPrice = getMarkupPrice(prod.cost_price)
+        }
         let priceType: 'retail' | 'wholesale' = 'retail'
 
         if (
@@ -258,6 +264,10 @@ export function PdvPage() {
       } else {
         // Novo item
         let unitPrice = Number(prod.sale_price || 0)
+        // Aplica markup se o preço de venda for zero e o toggle estiver ativo
+        if (unitPrice === 0 && pricingSettings?.apply_markup_on_pdv && prod.cost_price > 0) {
+          unitPrice = getMarkupPrice(prod.cost_price)
+        }
         let priceType: 'retail' | 'wholesale' = 'retail'
 
         if (

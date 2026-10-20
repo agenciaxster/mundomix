@@ -10,6 +10,8 @@ import {
   Copy,
   ExternalLink,
   CheckCircle2,
+  TrendingUp,
+  Info,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -26,12 +28,18 @@ import { ThermalReceipt } from '@/features/pos/receipt/ThermalReceipt'
 import { printThermalReceiptHtml } from '@/lib/utils/thermal-print'
 import { buildThermalReceiptHtml } from '@/features/pos/receipt/receipt-formatter'
 import type { Sale } from '@/types/sale'
+import { pricingSettingsService } from '@/lib/services/pricing-settings.service'
+import {
+  DEFAULT_PRICING_SETTINGS,
+  calcMarkupPrice,
+  type CompanyPricingSettings,
+} from '@/types/pricing'
 
 export function CompanySettingsPage() {
   const { activeCompany, activeBranch } = useAuth()
   const companyId = activeCompany?.id || ''
 
-  const [activeTab, setActiveTab] = useState<'receipt' | 'company'>('receipt')
+  const [activeTab, setActiveTab] = useState<'receipt' | 'company' | 'pricing'>('receipt')
   const [settings, setSettings] = useState<CompanyReceiptSettings>({
     ...DEFAULT_RECEIPT_SETTINGS,
     company_id: companyId,
@@ -40,7 +48,14 @@ export function CompanySettingsPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [isTestingPrint, setIsTestingPrint] = useState(false)
 
-  // Carrega configurações
+  // ── Configurações de Precificação / Markup ────────────────────────────────
+  const [pricingSettings, setPricingSettings] = useState<CompanyPricingSettings>({
+    ...DEFAULT_PRICING_SETTINGS,
+    company_id: companyId,
+  })
+  const [isPricingLoading, setIsPricingLoading] = useState(false)
+
+  // Carrega configurações de comprovante
   useEffect(() => {
     if (!companyId) {
       setIsLoading(false)
@@ -55,12 +70,29 @@ export function CompanySettingsPage() {
       .finally(() => setIsLoading(false))
   }, [companyId])
 
+  // Carrega configurações de precificação
+  useEffect(() => {
+    if (!companyId) return
+    setIsPricingLoading(true)
+    pricingSettingsService
+      .getSettings(companyId)
+      .then((loaded) => setPricingSettings(loaded))
+      .catch(() => {})
+      .finally(() => setIsPricingLoading(false))
+  }, [companyId])
+
   async function handleSave() {
     if (!companyId) return
     setIsSaving(true)
     try {
-      await receiptSettingsService.saveSettings(companyId, settings)
-      toast.success('Configurações de impressão salvas com sucesso!')
+      if (activeTab === 'pricing') {
+        const saved = await pricingSettingsService.saveSettings(companyId, pricingSettings)
+        setPricingSettings(saved)
+        toast.success('Configurações de precificação salvas com sucesso!')
+      } else {
+        await receiptSettingsService.saveSettings(companyId, settings)
+        toast.success('Configurações de impressão salvas com sucesso!')
+      }
     } catch (err: any) {
       toast.error(err.message || 'Erro ao salvar configurações.')
     } finally {
@@ -223,6 +255,19 @@ export function CompanySettingsPage() {
 
         <button
           type="button"
+          onClick={() => setActiveTab('pricing')}
+          className={`pb-3 text-sm font-bold flex items-center gap-2 transition border-b-2 -mb-px ${
+            activeTab === 'pricing'
+              ? 'border-emerald-500 text-emerald-400'
+              : 'border-transparent text-slate-400 hover:text-white'
+          }`}
+        >
+          <TrendingUp className="h-4 w-4" />
+          Precificação e Markup
+        </button>
+
+        <button
+          type="button"
           onClick={() => setActiveTab('company')}
           className={`pb-3 text-sm font-bold flex items-center gap-2 transition border-b-2 -mb-px ${
             activeTab === 'company'
@@ -234,6 +279,161 @@ export function CompanySettingsPage() {
           Dados Cadastrais da Empresa
         </button>
       </div>
+
+      {/* ─── ABA: PRECIFICAÇÃO E MARKUP ──────────────────────────────────── */}
+      {activeTab === 'pricing' && (
+        <div className="space-y-5">
+          {isPricingLoading ? (
+            <div className="flex items-center justify-center py-12 text-slate-400 text-sm">Carregando configurações...</div>
+          ) : (
+            <>
+              {/* Card principal de configuração */}
+              <div className="p-6 rounded-2xl border border-slate-800 bg-slate-900 space-y-5">
+                <div>
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-emerald-400" />
+                    Markup Padrão de Precificação
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Define a porcentagem de margem aplicada sobre o custo do produto para calcular o preço de venda sugerido.
+                    Útil para produtos importados que chegam apenas com o valor de custo.
+                  </p>
+                </div>
+
+                {/* Campo de Markup % */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-300 uppercase tracking-wide">
+                    % de Markup sobre o Custo
+                  </label>
+                  <div className="relative flex items-center">
+                    <Input
+                      type="number"
+                      min={0}
+                      max={9999}
+                      step={0.1}
+                      value={pricingSettings.default_markup_percentage}
+                      onChange={(e) =>
+                        setPricingSettings((s) => ({
+                          ...s,
+                          default_markup_percentage: Math.max(0, Number(e.target.value) || 0),
+                        }))
+                      }
+                      className="bg-slate-800 border-slate-700 text-white pr-10 font-mono text-base"
+                      placeholder="Ex: 30"
+                    />
+                    <span className="absolute right-3 text-slate-400 font-bold text-sm pointer-events-none">%</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    Insira 0 para desativar o cálculo automático.
+                  </p>
+                </div>
+
+                {/* Preview dinâmico */}
+                {pricingSettings.default_markup_percentage > 0 && (
+                  <div className="p-4 rounded-xl border border-emerald-700/40 bg-emerald-900/10 space-y-2">
+                    <p className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                      <Info className="h-3.5 w-3.5" />
+                      Prévia do Cálculo
+                    </p>
+                    <div className="grid grid-cols-3 gap-3 text-center">
+                      {[10, 25, 100].map((custo) => (
+                        <div key={custo} className="p-2.5 rounded-lg bg-slate-800/60 border border-slate-700 space-y-1">
+                          <p className="text-[10px] text-slate-400 uppercase font-bold">Custo</p>
+                          <p className="text-xs font-mono text-slate-300">R$ {custo.toFixed(2)}</p>
+                          <p className="text-[10px] text-slate-500">↓ {pricingSettings.default_markup_percentage}%</p>
+                          <p className="text-sm font-bold text-emerald-400 font-mono">
+                            R$ {calcMarkupPrice(custo, pricingSettings.default_markup_percentage).toFixed(2)}
+                          </p>
+                          <p className="text-[10px] text-slate-500">Preço de venda</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Toggles de comportamento */}
+              <div className="p-6 rounded-2xl border border-slate-800 bg-slate-900 space-y-4">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <Sliders className="h-4 w-4 text-emerald-400" />
+                  Como Aplicar o Markup
+                </h3>
+
+                {/* Toggle: aplicar no PDV/Orçamento */}
+                <div className="flex items-start justify-between gap-4 p-4 rounded-xl border border-slate-700 bg-slate-800/50">
+                  <div className="space-y-1">
+                    <p className="text-xs font-bold text-white">Aplicar no PDV e Orçamentos</p>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                      Quando um produto sem preço de venda (R$ 0,00) for adicionado ao PDV ou a um Orçamento,
+                      o sistema calculará automaticamente o preço sugerido usando o markup acima.
+                      O valor pode ser ajustado manualmente no momento da venda.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={pricingSettings.apply_markup_on_pdv}
+                    onClick={() =>
+                      setPricingSettings((s) => ({ ...s, apply_markup_on_pdv: !s.apply_markup_on_pdv }))
+                    }
+                    className={`shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                      pricingSettings.apply_markup_on_pdv ? 'bg-emerald-500' : 'bg-slate-600'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        pricingSettings.apply_markup_on_pdv ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Toggle: aplicar na importação XLS */}
+                <div className="flex items-start justify-between gap-4 p-4 rounded-xl border border-slate-700 bg-slate-800/50">
+                  <div className="space-y-1">
+                    <p className="text-xs font-bold text-white">Aplicar na Importação de Planilha (XLS)</p>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                      Durante a importação de planilhas, produtos sem preço de venda terão o preço
+                      calculado com o markup e <strong className="text-amber-400">gravado no banco</strong>.
+                      Você poderá ver uma prévia do preço calculado antes de confirmar a importação.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={pricingSettings.apply_markup_on_import}
+                    onClick={() =>
+                      setPricingSettings((s) => ({ ...s, apply_markup_on_import: !s.apply_markup_on_import }))
+                    }
+                    className={`shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                      pricingSettings.apply_markup_on_import ? 'bg-amber-500' : 'bg-slate-600'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        pricingSettings.apply_markup_on_import ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              {/* Dica informativa */}
+              <div className="p-4 rounded-2xl border border-slate-800 bg-slate-900/60 text-xs text-slate-400 space-y-1">
+                <div className="flex items-center gap-1.5 font-bold text-slate-300">
+                  <HelpCircle className="h-4 w-4 text-amber-400 shrink-0" />
+                  Como funciona o Markup?
+                </div>
+                <p className="text-[11px] leading-relaxed">
+                  O markup é calculado como: <span className="font-mono text-emerald-400">Preço de Venda = Custo × (1 + Markup%)</span>.
+                  Por exemplo, com markup de 30%, um produto que custa R$ 50,00 terá preço sugerido de R$ 65,00.
+                  Esta configuração <strong className="text-white">não altera</strong> produtos que já possuem preço de venda cadastrado.
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {/* ─── ABA 1: COMPROVANTES E IMPRESSÃO TÉRMICA ─────────────────────── */}
       {activeTab === 'receipt' && (

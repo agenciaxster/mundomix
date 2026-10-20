@@ -204,13 +204,13 @@ export function CashReportModal({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-slate-800 print:border-black gap-4">
             <div className="space-y-1">
               <h1 className="text-lg font-black tracking-tight text-white print:text-black uppercase">
-                {company?.trade_name || company?.legal_name || 'MundoMix Express'}
+                {company?.trade_name || company?.legal_name || 'EMPRESA MUNDOMIX'}
               </h1>
               <p className="text-xs text-slate-400 print:text-gray-700">
-                {company?.legal_name} &bull; CNPJ: {company?.cnpj || '12.345.678/0001-95'}
+                {company?.legal_name && `${company.legal_name} • `}CNPJ: {company?.cnpj || 'Não informado'}
               </p>
               <p className="text-xs text-slate-400 print:text-gray-700">
-                Palmas - TO &bull; Sistema ERP MundoMix
+                {company?.city ? `${company.city} - ${company.state || ''} • ` : ''}Sistema ERP MundoMix
               </p>
             </div>
 

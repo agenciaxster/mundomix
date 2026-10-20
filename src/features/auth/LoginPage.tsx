@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
-import { Eye, EyeOff, Layers, AlertCircle, Mail, KeyRound, ArrowRight, Loader2 } from 'lucide-react'
+import { Eye, EyeOff, AlertCircle, Mail, KeyRound, ArrowRight, Loader2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -132,18 +132,23 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50 dark:bg-slate-950">
+    <div
+      className="flex min-h-screen flex-col text-slate-100"
+      style={{ backgroundColor: '#021F5D' }}
+    >
       {/* Header mínimo com logo e alternador de tema */}
-      <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-6 dark:border-slate-800 dark:bg-slate-900">
-        <Link to="/" className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white shadow-sm">
-            <Layers className="h-5 w-5" />
-          </div>
+      <header className="flex h-16 items-center justify-between border-b border-white/10 bg-[#021F5D]/90 px-6 backdrop-blur-sm">
+        <Link to="/" className="flex items-center gap-3">
+          <img
+            src="/logo-mundomix.png"
+            alt="MundoMix"
+            className="h-9 w-auto object-contain"
+          />
           <div className="flex flex-col">
-            <span className="text-sm font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            <span className="text-sm font-bold tracking-tight text-white">
               MundoMix ERP
             </span>
-            <span className="text-[11px] text-slate-400 dark:text-slate-500">
+            <span className="text-[11px] text-blue-200/70">
               Multiloja Enterprise
             </span>
           </div>
@@ -152,22 +157,29 @@ export function LoginPage() {
       </header>
 
       {/* Área central do formulário */}
-      <main className="flex flex-1 items-center justify-center px-4 py-12">
-        <div className="w-full max-w-sm space-y-6">
-          {/* Título */}
-          <div className="space-y-1 text-center">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-              {mode === 'signin' ? 'Entrar na sua conta' : 'Recuperar senha'}
-            </h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              {mode === 'signin'
-                ? 'Acesse o ERP MundoMix com suas credenciais.'
-                : 'Informe seu e-mail e enviaremos as instruções de recuperação.'}
-            </p>
+      <main className="flex flex-1 items-center justify-center px-4 py-8">
+        <div className="w-full max-w-sm space-y-5">
+          {/* Apresentação da Logo Mundo Mix em Alta Resolução */}
+          <div className="flex flex-col items-center text-center">
+            <img
+              src="/logo-mundomix.png"
+              alt="Mundo Mix Logo"
+              className="h-32 sm:h-36 w-auto object-contain drop-shadow-2xl transition-transform duration-300 hover:scale-105"
+            />
+            <div className="space-y-1 mt-3">
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
+                {mode === 'signin' ? 'Acesso ao Sistema' : 'Recuperar senha'}
+              </h1>
+              <p className="text-xs sm:text-sm text-blue-200/80">
+                {mode === 'signin'
+                  ? 'Informe suas credenciais para acessar o painel'
+                  : 'Informe seu e-mail e enviaremos as instruções'}
+              </p>
+            </div>
           </div>
 
-          {/* Card do formulário */}
-          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          {/* Card do formulário integrado à cor institucional */}
+          <div className="rounded-2xl border border-white/15 bg-[#032770]/60 p-6 shadow-2xl backdrop-blur-md">
             <form
               onSubmit={mode === 'signin' ? handleSignIn : handleResetPassword}
               noValidate
@@ -177,12 +189,12 @@ export function LoginPage() {
               <div className="space-y-1.5">
                 <label
                   htmlFor="login-email"
-                  className="text-xs font-semibold text-slate-700 dark:text-slate-300"
+                  className="text-xs font-semibold text-blue-100"
                 >
                   E-mail
                 </label>
                 <div className="relative">
-                  <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
+                  <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-blue-300/60" />
                   <Input
                     id="login-email"
                     type="email"
@@ -191,7 +203,7 @@ export function LoginPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     autoComplete="email"
                     disabled={isSubmitting}
-                    className="pl-9"
+                    className="pl-9 bg-[#011440]/80 border-white/20 text-white placeholder:text-blue-200/40 focus:border-blue-400 focus:ring-blue-400"
                     aria-describedby={error ? 'login-error' : undefined}
                   />
                 </div>
@@ -202,12 +214,12 @@ export function LoginPage() {
                 <div className="space-y-1.5">
                   <label
                     htmlFor="login-password"
-                    className="text-xs font-semibold text-slate-700 dark:text-slate-300"
+                    className="text-xs font-semibold text-blue-100"
                   >
                     Senha
                   </label>
                   <div className="relative">
-                    <KeyRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
+                    <KeyRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-blue-300/60" />
                     <Input
                       id="login-password"
                       type={showPassword ? 'text' : 'password'}
@@ -216,13 +228,13 @@ export function LoginPage() {
                       onChange={(e) => setPassword(e.target.value)}
                       autoComplete="current-password"
                       disabled={isSubmitting}
-                      className="pl-9 pr-10"
+                      className="pl-9 pr-10 bg-[#011440]/80 border-white/20 text-white placeholder:text-blue-200/40 focus:border-blue-400 focus:ring-blue-400"
                     />
                     <button
                       type="button"
                       tabIndex={0}
                       onClick={() => setShowPassword((v) => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-slate-500 dark:hover:text-slate-300"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-0.5 text-blue-300/70 hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-400"
                       aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
                     >
                       {showPassword ? (
@@ -240,9 +252,9 @@ export function LoginPage() {
                 <div
                   id="login-error"
                   role="alert"
-                  className="flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/40 dark:text-rose-300"
+                  className="flex items-start gap-2 rounded-lg border border-rose-500/40 bg-rose-950/60 px-3 py-2.5 text-xs text-rose-200"
                 >
-                  <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-400" />
                   <span>{error}</span>
                 </div>
               )}
@@ -251,7 +263,7 @@ export function LoginPage() {
               {successMessage && (
                 <div
                   role="status"
-                  className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/40 dark:text-emerald-300"
+                  className="rounded-lg border border-emerald-500/40 bg-emerald-950/60 px-3 py-2.5 text-xs text-emerald-200"
                 >
                   {successMessage}
                 </div>
@@ -260,7 +272,7 @@ export function LoginPage() {
               {/* Botão Principal */}
               <Button
                 type="submit"
-                className="w-full"
+                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold shadow-lg shadow-blue-950/50 transition-all"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? (
@@ -271,7 +283,7 @@ export function LoginPage() {
                 {mode === 'signin'
                   ? isSubmitting
                     ? 'Entrando...'
-                    : 'Entrar'
+                    : 'Entrar no Sistema'
                   : isSubmitting
                     ? 'Enviando...'
                     : 'Enviar instruções'}
@@ -287,8 +299,8 @@ export function LoginPage() {
                     setSuccessMessage(null)
                   }}
                   className={cn(
-                    'text-xs text-blue-600 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 rounded dark:text-blue-400',
-                    mode === 'reset' && 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
+                    'text-xs text-blue-300 hover:text-white hover:underline focus:outline-none focus:ring-2 focus:ring-blue-400 rounded',
+                    mode === 'reset' && 'text-blue-300/80 hover:text-white'
                   )}
                 >
                   {mode === 'signin'
@@ -300,7 +312,7 @@ export function LoginPage() {
           </div>
 
           {/* Rodapé informativo */}
-          <p className="text-center text-[11px] text-slate-400 dark:text-slate-500">
+          <p className="text-center text-[11px] text-blue-200/50">
             Acesso restrito a colaboradores autorizados.
             <br />
             Problemas? Contate o administrador do sistema.

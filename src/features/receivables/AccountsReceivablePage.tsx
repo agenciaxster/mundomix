@@ -83,6 +83,8 @@ export function AccountsReceivablePage() {
     loadData()
   }, [loadData])
 
+  const [isClearing, setIsClearing] = useState(false)
+
   async function handleDeleteReceivable(inst: ReceivableInstallment) {
     const cust = inst.customer?.name || 'Cliente'
     const doc = inst.receivable?.document_number ? ` (Doc: ${inst.receivable.document_number})` : ''
@@ -101,6 +103,33 @@ export function AccountsReceivablePage() {
     }
   }
 
+  async function handleClearAllReceivables() {
+    if (!companyId) return
+    const totalCount = metrics.totalCount || installments.length
+
+    if (totalCount === 0) {
+      toast.info('Não há lançamentos de contas a receber para limpar.')
+      return
+    }
+
+    const confirmClear = window.confirm(
+      `⚠️ ATENÇÃO: Deseja realmente LIMPAR TODOS os títulos e parcelas de contas a receber já lançados?\n\nEsta ação apagará permanentemente todos os ${totalCount} lançamentos da empresa/filial atual e não pode ser revertida.\n\nDeseja prosseguir?`
+    )
+    if (!confirmClear) return
+
+    setIsClearing(true)
+    try {
+      const res = await receivableService.clearAllReceivables(companyId, branchId || undefined)
+      toast.success(`Contas a receber limpas com sucesso! ${res.deletedCount} títulos removidos.`)
+      await loadData()
+    } catch (err: any) {
+      console.error('Erro ao limpar contas a receber:', err)
+      toast.error(err.message || 'Falha ao limpar lançamentos de contas a receber.')
+    } finally {
+      setIsClearing(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* ─── CABEÇALHO DA PÁGINA ─────────────────────────────────────────── */}
@@ -109,6 +138,19 @@ export function AccountsReceivablePage() {
         description="Gestão de vendas a prazo, crediário, parcelas e liquidações financeiras"
         actions={
           <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleClearAllReceivables}
+              disabled={isClearing || isLoading || (metrics.totalCount === 0 && installments.length === 0)}
+              className="text-xs border-rose-500/30 bg-rose-950/20 text-rose-300 hover:bg-rose-900/40 hover:text-white transition flex items-center gap-1.5"
+              title="Limpar todos os títulos e parcelas lançados"
+            >
+              <Trash2 className="h-3.5 w-3.5 text-rose-400" />
+              {isClearing ? 'Limpando...' : 'Limpar Lançamentos'}
+            </Button>
+
             <Button
               type="button"
               variant="outline"

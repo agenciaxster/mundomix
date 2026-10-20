@@ -34,6 +34,7 @@ import type {
   ActiveColumnInfo,
   ParsedItemRow,
 } from '@/lib/utils/product-importer-parser'
+import { usePricingSettings } from '@/hooks/usePricingSettings'
 
 interface ProductXlsImporterModalProps {
   isOpen: boolean
@@ -51,6 +52,7 @@ export function ProductXlsImporterModal({
   onImportSuccess,
 }: ProductXlsImporterModalProps) {
   const { activeCompany, activeBranch } = useAuth()
+  const { pricingSettings, getMarkupPrice } = usePricingSettings()
 
   const [file, setFile] = useState<File | null>(null)
   const [matrix, setMatrix] = useState<string[][]>([])
@@ -284,6 +286,7 @@ export function ProductXlsImporterModal({
 
     setIsImporting(true)
     try {
+      const markup = pricingSettings
       const payload = validItems.map((item) => ({
         name: item.name,
         sku: item.sku,
@@ -292,7 +295,14 @@ export function ProductXlsImporterModal({
         brand: item.brand,
         unit: item.unit,
         cost_price: item.costPrice,
-        sale_price: item.salePrice,
+        // Se apply_markup_on_import ativo e sem preço de venda, calcula com markup
+        sale_price:
+          (!item.salePrice || item.salePrice === 0) &&
+          markup?.apply_markup_on_import &&
+          markup.default_markup_percentage > 0 &&
+          item.costPrice > 0
+            ? getMarkupPrice(item.costPrice)
+            : item.salePrice,
         wholesale_price: item.wholesalePrice,
         wholesale_min_qty: item.wholesaleMinQty,
         min_stock: item.minStock,

@@ -451,20 +451,15 @@ export const receivableService = {
   async deleteReceivable(companyId: string, receivableId: string): Promise<boolean> {
     const client = getClient()
 
-    // 1. Verifica se há pagamentos registrados para o título
-    const { data: payments, error: payErr } = await client
-      .from('receivable_payments')
-      .select('id, amount_paid')
-      .eq('company_id', companyId)
-      .eq('receivable_id', receivableId)
-
-    if (payErr) {
-      console.warn('Aviso ao consultar pagamentos:', payErr)
-    }
-
-    if (payments && payments.length > 0) {
-      const sum = payments.reduce((acc, p) => acc + Number(p.amount_paid || 0), 0)
-      throw new Error(`Não é possível excluir este título pois existem recebimentos registrados (R$ ${sum.toFixed(2)}). Estorne os pagamentos antes de excluir.`)
+    // 1. Remove quaisquer pagamentos registrados para o título (estorno automático na exclusão)
+    try {
+      await client
+        .from('receivable_payments')
+        .delete()
+        .eq('company_id', companyId)
+        .eq('receivable_id', receivableId)
+    } catch (payErr) {
+      console.warn('Aviso ao remover pagamentos vinculados:', payErr)
     }
 
     // 2. Tenta exclusão atômica via RPC delete_accounts_receivable
@@ -531,6 +526,76 @@ export const receivableService = {
     }
 
     return true
+  },
+
+  /**
+   * Limpa todos os títulos e parcelas de contas a receber da empresa (Zerar lançamentos)
+   */
+  async clearAllReceivables(companyId: string, branchId?: string): Promise<{ deletedCount: number }> {
+    const client = getClient()
+
+    // 1. Busca os IDs das contas a receber da empresa (e filial, se especificada)
+    let query = client
+      .from('accounts_receivable')
+      .select('id')
+      .eq('company_id', companyId)
+
+    if (branchId) {
+      query = query.eq('branch_id', branchId)
+    }
+
+    const { data: recs, error: recsErr } = await query
+
+    if (recsErr) {
+      console.error('Erro ao consultar títulos para limpeza:', recsErr)
+      throw new Error('Falha ao localizar os títulos para limpeza.')
+    }
+
+    if (!recs || recs.length === 0) {
+      return { deletedCount: 0 }
+    }
+
+    const recIds = recs.map((r) => r.id)
+
+    // 2. Remove os pagamentos vinculados
+    try {
+      await client
+        .from('receivable_payments')
+        .delete()
+        .eq('company_id', companyId)
+        .in('receivable_id', recIds)
+    } catch (payErr) {
+      console.warn('Aviso ao remover pagamentos vinculados:', payErr)
+    }
+
+    // 3. Remove todas as parcelas
+    const { error: instErr } = await client
+      .from('accounts_receivable_installments')
+      .delete()
+      .eq('company_id', companyId)
+      .in('receivable_id', recIds)
+
+    if (instErr) {
+      console.error('Erro ao excluir parcelas:', instErr)
+      throw new Error(instErr.message || 'Erro ao remover as parcelas de contas a receber.')
+    }
+
+    // 4. Remove os títulos principais
+    const { error: delErr } = await client
+      .from('accounts_receivable')
+      .delete()
+      .eq('company_id', companyId)
+      .in('id', recIds)
+
+    if (delErr) {
+      console.warn('Aviso ao remover registros principais de contas a receber:', delErr)
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('financial-records-changed'))
+    }
+
+    return { deletedCount: recIds.length }
   },
 }
 

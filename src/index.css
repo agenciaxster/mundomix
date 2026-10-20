@@ -46,21 +46,120 @@
   background: rgba(71, 85, 105, 0.7);
 }
 
-/* ─── ESTILOS ESPECÍFICOS PARA IMPRESSÃO TÉRMICA DE COMPROVANTES NÃO FISCAIS ──── */
+/* ─── ESTILOS PROFISSIONAIS PARA IMPRESSÃO DE RELATÓRIOS E DOCUMENTOS A4 ──── */
 @media print {
   @page {
-    margin: 0;
+    margin: 10mm 12mm 12mm 12mm;
     size: auto;
   }
 
-  /* Oculta elementos comuns da interface web na impressão regular */
+  /* Reset de cores e fundos para economia de tinta e nitidez no papel */
+  *,
+  *::before,
+  *::after {
+    background: transparent !important;
+    color: #0f172a !important; /* Slate 900 */
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 10pt;
+    line-height: 1.35;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+  }
+
+  /* Oculta estritamente menus, cabeçalhos do app, botões, filtros interativos, cards da tela */
   header,
   nav,
   aside,
   button,
+  input,
+  select,
   .no-print,
-  [data-no-print] {
+  [data-no-print],
+  .print-hidden,
+  .toaster,
+  .fixed,
+  .sticky {
     display: none !important;
+  }
+
+  /* Exibe explicitamente elementos marcados para impressão */
+  .print-only,
+  .print-block,
+  .print-report-header,
+  .print-report-footer {
+    display: block !important;
+  }
+
+  .print-flex {
+    display: flex !important;
+  }
+
+  /* Tabela de relatório profissional com bordas discretas e cabeçalho repetível */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: auto;
+    font-size: 8.5pt !important;
+  }
+
+  thead {
+    display: table-header-group !important; /* Repete cabeçalho da tabela nas páginas */
+  }
+
+  tfoot {
+    display: table-footer-group !important;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    page-break-after: auto;
+  }
+
+  th {
+    background-color: #f1f5f9 !important; /* Slate 100 */
+    color: #0f172a !important;
+    border-bottom: 2px solid #334155 !important;
+    padding: 5px 6px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    font-size: 7.5pt !important;
+  }
+
+  td {
+    border-bottom: 1px solid #cbd5e1 !important; /* Slate 300 */
+    padding: 4px 6px !important;
+    color: #1e293b !important;
+  }
+
+  /* Totalizadores e destaques */
+  .print-totals-row td {
+    border-top: 2px solid #0f172a !important;
+    border-bottom: 2px solid #0f172a !important;
+    font-weight: 800 !important;
+    background-color: #f8fafc !important;
+  }
+
+  /* Quebras de página controladas */
+  .page-break-before {
+    page-break-before: always !important;
+  }
+  .page-break-after {
+    page-break-after: always !important;
+  }
+  .avoid-break {
+    page-break-inside: avoid !important;
   }
 }
 

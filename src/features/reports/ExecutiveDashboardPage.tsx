@@ -19,6 +19,8 @@ import { receivableService } from '@/lib/services/receivable.service'
 import { toast } from '@/hooks/useToast'
 import type { ReportFilterState, ExecutiveDashboardData } from '@/types/report'
 import { ReportFilterBar } from './components/ReportFilterBar'
+import { ReportPrintHeader } from './components/ReportPrintHeader'
+import { ReportPrintFooter } from './components/ReportPrintFooter'
 import { StatCard } from '@/components/shared/StatCard'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
@@ -193,10 +195,28 @@ export function ExecutiveDashboardPage() {
     })
   }
 
+  const branchName =
+    filters.branchId === 'all'
+      ? 'Todas as Filiais'
+      : availableBranches.find((b) => b.id === filters.branchId)?.name || 'Filial'
+  const currentBranch = availableBranches.find((b) => b.id === filters.branchId) || activeBranch
+
   return (
     <div className="space-y-6">
+      {/* Cabeçalho Institucional de Impressão */}
+      <ReportPrintHeader
+        title="Relatório Gerencial - Dashboard Executivo"
+        subtitle="Consolidação de Faturamento, Operações e Finanças"
+        company={activeCompany}
+        branch={filters.branchId === 'all' ? null : currentBranch}
+        filtersSummary={{
+          Filial: branchName,
+          Período: `${filters.dateFrom.split('-').reverse().join('/')} a ${filters.dateTo.split('-').reverse().join('/')}`,
+        }}
+      />
+
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 no-print">
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold tracking-tight text-white">
@@ -239,13 +259,105 @@ export function ExecutiveDashboardPage() {
       </div>
 
       {/* Barra de Filtros Unificada */}
-      <ReportFilterBar
-        filters={filters}
-        onChange={setFilters}
-        branches={availableBranches}
-        onRefresh={() => loadDashboard(true)}
-        isRefreshing={isRefreshing}
-      />
+      <div className="no-print">
+        <ReportFilterBar
+          filters={filters}
+          onChange={setFilters}
+          branches={availableBranches}
+          onRefresh={() => loadDashboard(true)}
+          isRefreshing={isRefreshing}
+        />
+      </div>
+
+      {/* Tabela Resumo Exclusiva para Documento de Impressão */}
+      {dashboardData && (
+        <div className="hidden print:block space-y-4">
+          <h2 className="text-sm font-bold uppercase tracking-wide border-b pb-1 text-slate-800">
+            Resumo Consolidado de Indicadores
+          </h2>
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="border-b bg-slate-100">
+                <th className="py-2 px-3 font-semibold text-slate-700">Indicador Gerencial</th>
+                <th className="py-2 px-3 text-right font-semibold text-slate-700">Valor / Volume</th>
+                <th className="py-2 px-3 font-semibold text-slate-700">Observações Técnicas</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200">
+              <tr>
+                <td className="py-1.5 px-3 font-medium">Faturamento Líquido (Vendas Válidas)</td>
+                <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-900">
+                  R$ {dashboardData.salesSummary.netTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </td>
+                <td className="py-1.5 px-3 text-slate-600">Exclui pedidos cancelados e estornados</td>
+              </tr>
+              <tr>
+                <td className="py-1.5 px-3 font-medium">Faturamento Bruto Total</td>
+                <td className="py-1.5 px-3 text-right font-mono text-slate-800">
+                  R$ {dashboardData.salesSummary.grossTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </td>
+                <td className="py-1.5 px-3 text-slate-600">Soma dos valores integrais faturados</td>
+              </tr>
+              <tr>
+                <td className="py-1.5 px-3 font-medium">Descontos Concedidos no Período</td>
+                <td className="py-1.5 px-3 text-right font-mono text-slate-800">
+                  R$ {dashboardData.salesSummary.discountTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </td>
+                <td className="py-1.5 px-3 text-slate-600">Descontos comerciais aplicados em balcão/pedidos</td>
+              </tr>
+              <tr>
+                <td className="py-1.5 px-3 font-medium">Quantidade de Vendas Concluídas</td>
+                <td className="py-1.5 px-3 text-right font-mono text-slate-800">
+                  {dashboardData.salesSummary.completedCount} pedido(s)
+                </td>
+                <td className="py-1.5 px-3 text-slate-600">Cupons e transações com status finalizado</td>
+              </tr>
+              <tr>
+                <td className="py-1.5 px-3 font-medium">Ticket Médio por Venda</td>
+                <td className="py-1.5 px-3 text-right font-mono text-slate-800">
+                  R$ {dashboardData.salesSummary.averageTicket.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </td>
+                <td className="py-1.5 px-3 text-slate-600">Média líquida apurada por atendimento</td>
+              </tr>
+              <tr>
+                <td className="py-1.5 px-3 font-medium">Vendas Canceladas</td>
+                <td className="py-1.5 px-3 text-right font-mono text-rose-700">
+                  R$ {dashboardData.salesSummary.cancelledTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </td>
+                <td className="py-1.5 px-3 text-slate-600">{dashboardData.salesSummary.cancelledCount} pedido(s) cancelado(s)</td>
+              </tr>
+              <tr>
+                <td className="py-1.5 px-3 font-medium">Recebimentos Efetivados no Período</td>
+                <td className="py-1.5 px-3 text-right font-mono text-emerald-700 font-bold">
+                  R$ {dashboardData.financialSummary.receivablesPaidPeriod.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </td>
+                <td className="py-1.5 px-3 text-slate-600">Liquidações de títulos a receber</td>
+              </tr>
+              <tr>
+                <td className="py-1.5 px-3 font-medium">Pagamentos Efetivados no Período</td>
+                <td className="py-1.5 px-3 text-right font-mono text-rose-700 font-bold">
+                  R$ {dashboardData.financialSummary.payablesPaidPeriod.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </td>
+                <td className="py-1.5 px-3 text-slate-600">Liquidações de despesas e contas a pagar</td>
+              </tr>
+              <tr>
+                <td className="py-1.5 px-3 font-medium">Inadimplência (Títulos a Receber Vencidos)</td>
+                <td className="py-1.5 px-3 text-right font-mono text-amber-700 font-bold">
+                  R$ {dashboardData.financialSummary.receivablesOverdue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </td>
+                <td className="py-1.5 px-3 text-slate-600">{dashboardData.criticalAlerts.overdueReceivablesCount} título(s) em atraso</td>
+              </tr>
+              <tr>
+                <td className="py-1.5 px-3 font-medium">Obrigações Vencidas (Contas a Pagar em Atraso)</td>
+                <td className="py-1.5 px-3 text-right font-mono text-rose-700 font-bold">
+                  R$ {dashboardData.financialSummary.payablesOverdue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </td>
+                <td className="py-1.5 px-3 text-slate-600">{dashboardData.criticalAlerts.overduePayablesCount} conta(s) a regularizar</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {isLoading ? (
         <LoadingState message="Consolidando dados gerenciais no banco de dados..." />
@@ -701,8 +813,12 @@ export function ExecutiveDashboardPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Rodapé documental impresso */}
+          <ReportPrintFooter />
         </>
       )}
     </div>
   )
 }
+

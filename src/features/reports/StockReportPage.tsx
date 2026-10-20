@@ -16,9 +16,11 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { exportToExcel, triggerPrint } from '@/lib/utils/report-export'
+import { ReportPrintHeader } from './components/ReportPrintHeader'
+import { ReportPrintFooter } from './components/ReportPrintFooter'
 
 export function StockReportPage() {
-  const { activeCompany, companies, activeBranch } = useAuth()
+  const { activeCompany, companies, activeBranch, profile, user } = useAuth()
 
   const currentCompanyData = companies.find((c) => c.company.id === activeCompany?.id)
   const availableBranches = currentCompanyData?.branches || []
@@ -119,10 +121,32 @@ export function StockReportPage() {
     })
   }
 
+  const activeBranchName =
+    selectedBranchId === 'all'
+      ? 'Todas as Filiais'
+      : availableBranches.find((b) => b.id === selectedBranchId)?.name || activeBranch?.name || 'Filial'
+
+  const userDisplayName = profile?.full_name || user?.email || 'Usuário Autenticado'
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      {/* ─── CABEÇALHO INSTITUCIONAL DE IMPRESSÃO ─── */}
+      <ReportPrintHeader
+        title="Posição & Valoração de Estoque"
+        subtitle="Saldos físicos, disponíveis, estoque mínimo e valoração estimada a custo"
+        company={activeCompany}
+        branch={activeBranch}
+        userName={userDisplayName}
+        filtersSummary={{
+          Filial: activeBranchName,
+          'Nível de Estoque':
+            statusFilter === 'all' ? 'Todos' : statusFilter === 'low' ? 'Abaixo do Mínimo' : 'Estoque Zerado',
+          Busca: searchTerm ? `"${searchTerm}"` : undefined,
+        }}
+      />
+
+      {/* Header na Tela */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 print:hidden">
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold tracking-tight text-white">Relatório de Estoque</h1>
@@ -162,7 +186,7 @@ export function StockReportPage() {
       </div>
 
       {/* Controles de Filtros */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/90 p-4 shadow-xl">
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/90 p-4 shadow-xl print:hidden">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
           {/* Busca por Nome/SKU */}
           <div>
@@ -230,7 +254,7 @@ export function StockReportPage() {
       </div>
 
       {/* Cards de Métricas */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 print:hidden">
         <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
           <p className="text-xs text-slate-400">Total Físico em Estoque</p>
           <p className="text-xl font-bold text-white font-mono mt-1">
@@ -333,10 +357,31 @@ export function StockReportPage() {
                   </tr>
                 ))}
               </tbody>
+              <tfoot className="border-t-2 border-slate-700 bg-slate-850 font-bold text-xs">
+                <tr className="print-totals-row">
+                  <td colSpan={3} className="py-3 px-4 text-right uppercase text-slate-300">
+                    Totais ({filteredItems.length} registros):
+                  </td>
+                  <td className="py-3 px-4 text-right font-mono font-bold text-slate-200">
+                    {totalPhysicalQty.toLocaleString('pt-BR')}
+                  </td>
+                  <td className="py-3 px-4 text-right font-mono font-bold text-cyan-400">
+                    {totalAvailableQty.toLocaleString('pt-BR')}
+                  </td>
+                  <td colSpan={2} className="py-3 px-4"></td>
+                  <td className="py-3 px-4 text-right font-mono font-black text-white text-sm">
+                    R$ {totalEstimatedCost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </td>
+                  <td></td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         </div>
       )}
+
+      {/* Rodapé Padronizado de Impressão */}
+      <ReportPrintFooter />
     </div>
   )
 }

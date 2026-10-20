@@ -23,7 +23,6 @@ import {
   Building2,
   UserCheck,
   Sliders,
-  Settings,
 } from 'lucide-react'
 import type { NavGroup } from '@/types/navigation'
 
@@ -227,15 +226,8 @@ export const NAVIGATION_CONFIG: NavGroup[] = [
         title: 'Configurações da Empresa',
         href: '/admin/configuracoes-empresa',
         icon: Sliders,
-        description: 'Dados cadastrais, logo, recibos e comprovantes térmicos',
+        description: 'Dados cadastrais, logo, recibos, regras de markup e comprovantes',
         implemented: true,
-      },
-      {
-        title: 'Configurações do Sistema',
-        href: '/admin/configuracoes-sistema',
-        icon: Settings,
-        description: 'Preferências gerais, backups e integrações externas',
-        implemented: false,
       },
     ],
   },

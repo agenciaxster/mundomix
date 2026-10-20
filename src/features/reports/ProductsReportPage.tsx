@@ -8,13 +8,15 @@ import { useAuth } from '@/hooks/useAuth'
 import { reportService } from '@/lib/services/report.service'
 import type { ReportFilterState, ProductRankingItem } from '@/types/report'
 import { ReportFilterBar } from './components/ReportFilterBar'
+import { ReportPrintHeader } from './components/ReportPrintHeader'
+import { ReportPrintFooter } from './components/ReportPrintFooter'
 import { LoadingState } from '@/components/shared/LoadingState'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { exportToExcel, triggerPrint } from '@/lib/utils/report-export'
 
 export function ProductsReportPage() {
-  const { activeCompany, companies, activeBranch } = useAuth()
+  const { activeCompany, companies, activeBranch, profile, user } = useAuth()
 
   const currentCompanyData = companies.find((c) => c.company.id === activeCompany?.id)
   const availableBranches = currentCompanyData?.branches || []
@@ -100,10 +102,30 @@ export function ProductsReportPage() {
     })
   }
 
+  const activeBranchName =
+    filters.branchId === 'all'
+      ? 'Todas as Filiais'
+      : availableBranches.find((b) => b.id === filters.branchId)?.name || activeBranch?.name || 'Filial'
+
+  const userDisplayName = profile?.full_name || user?.email || 'Usuário Autenticado'
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      {/* ─── CABEÇALHO INSTITUCIONAL DE IMPRESSÃO ─── */}
+      <ReportPrintHeader
+        title="Ranking de Produtos & Curva ABC"
+        subtitle="Relação de itens com maior giro, faturamento bruto e valoração de saída"
+        company={activeCompany}
+        branch={activeBranch}
+        userName={userDisplayName}
+        filtersSummary={{
+          Filial: activeBranchName,
+          Período: `${new Date(filters.dateFrom).toLocaleDateString('pt-BR')} até ${new Date(filters.dateTo).toLocaleDateString('pt-BR')}`,
+        }}
+      />
+
+      {/* Header na Tela */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 print:hidden">
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold tracking-tight text-white">
@@ -144,17 +166,19 @@ export function ProductsReportPage() {
         </div>
       </div>
 
-      {/* Filtros */}
-      <ReportFilterBar
-        filters={filters}
-        onChange={setFilters}
-        branches={availableBranches}
-        onRefresh={() => loadData(true)}
-        isRefreshing={isRefreshing}
-      />
+      {/* Filtros da Tela */}
+      <div className="print:hidden">
+        <ReportFilterBar
+          filters={filters}
+          onChange={setFilters}
+          branches={availableBranches}
+          onRefresh={() => loadData(true)}
+          isRefreshing={isRefreshing}
+        />
+      </div>
 
-      {/* Cards de Resumo */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      {/* Cards de Resumo da Tela */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 print:hidden">
         <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
           <p className="text-xs text-slate-400">Total de Itens Vendidos</p>
           <p className="text-xl font-bold text-white font-mono mt-1">
@@ -240,10 +264,27 @@ export function ProductsReportPage() {
                   </tr>
                 ))}
               </tbody>
+              <tfoot className="border-t-2 border-slate-700 bg-slate-850 font-bold text-xs">
+                <tr className="print-totals-row">
+                  <td colSpan={4} className="py-3 px-4 text-right uppercase text-slate-300">
+                    Totais Consolidados ({products.length} itens):
+                  </td>
+                  <td className="py-3 px-4 text-right font-mono font-bold text-slate-200">
+                    {totalSoldQty.toLocaleString('pt-BR')}
+                  </td>
+                  <td className="py-3 px-4 text-right font-mono font-black text-white text-sm">
+                    R$ {totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </td>
+                  <td colSpan={2} className="py-3 px-4"></td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         </div>
       )}
+
+      {/* Rodapé Padronizado de Impressão */}
+      <ReportPrintFooter />
     </div>
   )
 }

@@ -9,6 +9,7 @@ import {
 import { NAVIGATION_CONFIG } from '@/app/navigation'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/hooks/useAuth'
 
 interface SidebarProps {
   isCollapsed: boolean
@@ -23,6 +24,14 @@ export function Sidebar({
   isMobileOpen,
   onMobileClose,
 }: SidebarProps) {
+  const { activeRole } = useAuth()
+
+  // Vendedor e Operador de Caixa têm acesso estrito ao menu Comercial
+  const isRestrictedRole = activeRole === 'salesperson' || activeRole === 'cashier'
+
+  const visibleNavConfig = isRestrictedRole
+    ? NAVIGATION_CONFIG.filter((group) => group.groupTitle.toLowerCase() === 'comercial')
+    : NAVIGATION_CONFIG
   return (
     <>
       {/* Mobile Backdrop */}
@@ -83,7 +92,7 @@ export function Sidebar({
 
         {/* Scrollable Navigation List */}
         <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6 scrollbar-thin">
-          {NAVIGATION_CONFIG.map((group) => (
+          {visibleNavConfig.map((group) => (
             <div key={group.groupTitle} className="space-y-1">
               {(!isCollapsed || isMobileOpen) && (
                 <div className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase dark:text-slate-500">

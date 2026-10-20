@@ -10,6 +10,8 @@ import { useAuth } from '@/hooks/useAuth'
 import { reportService } from '@/lib/services/report.service'
 import type { ReportFilterState, FinancialReportData } from '@/types/report'
 import { ReportFilterBar } from './components/ReportFilterBar'
+import { ReportPrintHeader } from './components/ReportPrintHeader'
+import { ReportPrintFooter } from './components/ReportPrintFooter'
 import { LoadingState } from '@/components/shared/LoadingState'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -17,7 +19,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { exportToExcel, triggerPrint } from '@/lib/utils/report-export'
 
 export function FinancialReportPage() {
-  const { activeCompany, companies, activeBranch } = useAuth()
+  const { activeCompany, companies, activeBranch, profile, user } = useAuth()
 
   const currentCompanyData = companies.find((c) => c.company.id === activeCompany?.id)
   const availableBranches = currentCompanyData?.branches || []
@@ -116,10 +118,30 @@ export function FinancialReportPage() {
     })
   }
 
+  const activeBranchName =
+    filters.branchId === 'all'
+      ? 'Todas as Filiais'
+      : availableBranches.find((b) => b.id === filters.branchId)?.name || activeBranch?.name || 'Filial'
+
+  const userDisplayName = profile?.full_name || user?.email || 'Usuário Autenticado'
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      {/* ─── CABEÇALHO INSTITUCIONAL DE IMPRESSÃO ─── */}
+      <ReportPrintHeader
+        title="Relatório Financeiro Consolidado"
+        subtitle="Apuração de liquidações, títulos a pagar e a receber e conferência de caixas"
+        company={activeCompany}
+        branch={activeBranch}
+        userName={userDisplayName}
+        filtersSummary={{
+          Filial: activeBranchName,
+          Período: `${new Date(filters.dateFrom).toLocaleDateString('pt-BR')} até ${new Date(filters.dateTo).toLocaleDateString('pt-BR')}`,
+        }}
+      />
+
+      {/* Header na Tela */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 print:hidden">
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold tracking-tight text-white">Relatório Financeiro</h1>
@@ -158,14 +180,16 @@ export function FinancialReportPage() {
         </div>
       </div>
 
-      {/* Filtros */}
-      <ReportFilterBar
-        filters={filters}
-        onChange={setFilters}
-        branches={availableBranches}
-        onRefresh={() => loadData(true)}
-        isRefreshing={isRefreshing}
-      />
+      {/* Filtros da Tela */}
+      <div className="print:hidden">
+        <ReportFilterBar
+          filters={filters}
+          onChange={setFilters}
+          branches={availableBranches}
+          onRefresh={() => loadData(true)}
+          isRefreshing={isRefreshing}
+        />
+      </div>
 
       {isLoading ? (
         <LoadingState message="Apurando conciliações financeiras e histórico de caixas..." />
@@ -175,8 +199,72 @@ export function FinancialReportPage() {
         </div>
       ) : (
         <>
-          {/* Cards de Previsto vs Realizado */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {/* Tabela de Indicadores Consolidada para Impressão */}
+          <div className="hidden print:block mb-6 overflow-hidden rounded border border-slate-300">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-100 text-slate-800 uppercase font-bold text-[10px]">
+                <tr>
+                  <th className="py-2 px-3">Natureza / Indicador Financeiro</th>
+                  <th className="py-2 px-3 text-right">Valor Apurado (R$)</th>
+                  <th className="py-2 px-3">Situação Contábil</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200 text-slate-800">
+                <tr>
+                  <td className="py-2 px-3 font-semibold">Recebimentos Efetivos no Período</td>
+                  <td className="py-2 px-3 text-right font-mono font-bold">
+                    R$ {financialData.summary.effectiveReceivedPeriod.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </td>
+                  <td className="py-2 px-3">Realizado (Entrada em Conta/Caixa)</td>
+                </tr>
+                <tr>
+                  <td className="py-2 px-3 font-semibold">Pagamentos Efetivos no Período</td>
+                  <td className="py-2 px-3 text-right font-mono font-bold">
+                    R$ {financialData.summary.effectivePaidPeriod.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </td>
+                  <td className="py-2 px-3">Realizado (Saída / Despesa Paga)</td>
+                </tr>
+                <tr className="bg-slate-50 font-bold">
+                  <td className="py-2 px-3">Saldo Operacional Líquido Realizado (Entradas - Saídas)</td>
+                  <td className="py-2 px-3 text-right font-mono font-black">
+                    R$ {(financialData.summary.effectiveReceivedPeriod - financialData.summary.effectivePaidPeriod).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </td>
+                  <td className="py-2 px-3">Resultado de Caixa do Período</td>
+                </tr>
+                <tr>
+                  <td className="py-2 px-3">Títulos a Receber em Aberto (Total Geral)</td>
+                  <td className="py-2 px-3 text-right font-mono">
+                    R$ {financialData.summary.openReceivablesTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </td>
+                  <td className="py-2 px-3">Previsão de Recebimento Futuro</td>
+                </tr>
+                <tr>
+                  <td className="py-2 px-3 text-rose-700">Títulos a Receber Vencidos em Atraso</td>
+                  <td className="py-2 px-3 text-right font-mono font-bold text-rose-700">
+                    R$ {financialData.summary.overdueReceivablesTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </td>
+                  <td className="py-2 px-3">Cobrança / Inadimplência</td>
+                </tr>
+                <tr>
+                  <td className="py-2 px-3">Contas a Pagar em Aberto</td>
+                  <td className="py-2 px-3 text-right font-mono">
+                    R$ {financialData.summary.openPayablesTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </td>
+                  <td className="py-2 px-3">Obrigações Futuras Cadastradas</td>
+                </tr>
+                <tr>
+                  <td className="py-2 px-3 text-rose-700">Contas a Pagar Vencidas</td>
+                  <td className="py-2 px-3 text-right font-mono font-bold text-rose-700">
+                    R$ {financialData.summary.overduePayablesTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </td>
+                  <td className="py-2 px-3">Exigível Imediato em Atraso</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          {/* Cards de Previsto vs Realizado da Tela */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 print:hidden">
             <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-4">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-emerald-400">Recebido Efetivamente</span>
@@ -221,15 +309,15 @@ export function FinancialReportPage() {
           </div>
 
           {/* Histórico de Fechamento de Caixas & Sobras/Faltas */}
-          <Card className="border-slate-800 bg-slate-900/60">
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
+          <Card className="border-slate-800 bg-slate-900/60 print:border-none print:shadow-none print:p-0">
+            <CardHeader className="flex flex-row items-center justify-between pb-3 print:p-0 print:mb-2">
               <div>
-                <CardTitle className="text-base text-white">Auditoria de Fechamentos de Caixa</CardTitle>
-                <CardDescription className="text-xs text-slate-400">
+                <CardTitle className="text-base text-white print:text-slate-900 print:text-sm font-bold uppercase">Auditoria de Fechamentos de Caixa</CardTitle>
+                <CardDescription className="text-xs text-slate-400 print:text-slate-600">
                   Conferência de gaveta, valores apurados e registro de sobras (+) ou faltas (-).
                 </CardDescription>
               </div>
-              <Wallet className="h-5 w-5 text-blue-400" />
+              <Wallet className="h-5 w-5 text-blue-400 print:hidden" />
             </CardHeader>
             <CardContent>
               {financialData.cashSessionsHistory.length === 0 ? (
@@ -316,6 +404,9 @@ export function FinancialReportPage() {
           </Card>
         </>
       )}
+
+      {/* Rodapé Padronizado de Impressão */}
+      <ReportPrintFooter />
     </div>
   )
 }

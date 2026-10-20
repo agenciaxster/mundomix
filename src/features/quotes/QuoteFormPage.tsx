@@ -27,6 +27,7 @@ import { Input } from '@/components/ui/input'
 import { LoadingState } from '@/components/shared/LoadingState'
 import { toast } from '@/hooks/useToast'
 import { QrCameraScannerModal } from '@/components/shared/QrCameraScannerModal'
+import { usePricingSettings } from '@/hooks/usePricingSettings'
 
 interface CartItem {
   product: ProductWithBranchStock
@@ -45,6 +46,7 @@ export function QuoteFormPage() {
 
   const navigate = useNavigate()
   const { activeCompany, activeBranch, companies } = useAuth()
+  const { pricingSettings, getMarkupPrice } = usePricingSettings()
 
   const currentCompanyData = companies.find((c) => c.company.id === activeCompany?.id)
   const availableBranches = currentCompanyData?.branches || []
@@ -217,7 +219,11 @@ export function QuoteFormPage() {
         const newQty = item.quantity + qtyToAdd
 
         // Recalcula preço unitário considerando regra de atacado
-        let unitPrice = prod.sale_price
+        let unitPrice = Number(prod.sale_price || 0)
+        // Aplica markup se o preço de venda for zero e o toggle estiver ativo
+        if (unitPrice === 0 && pricingSettings?.apply_markup_on_pdv && prod.cost_price > 0) {
+          unitPrice = getMarkupPrice(prod.cost_price)
+        }
         let priceType: 'retail' | 'wholesale' = 'retail'
         if (
           prod.wholesale_price &&
@@ -238,7 +244,11 @@ export function QuoteFormPage() {
         return updated
       } else {
         // Novo item no carrinho
-        let unitPrice = prod.sale_price
+        let unitPrice = Number(prod.sale_price || 0)
+        // Aplica markup se o preço de venda for zero e o toggle estiver ativo
+        if (unitPrice === 0 && pricingSettings?.apply_markup_on_pdv && prod.cost_price > 0) {
+          unitPrice = getMarkupPrice(prod.cost_price)
+        }
         let priceType: 'retail' | 'wholesale' = 'retail'
         if (
           prod.wholesale_price &&
